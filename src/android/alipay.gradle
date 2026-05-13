@@ -1,10 +1,8 @@
 repositories{
-    jcenter()
-    flatDir{
-        dirs 'libs'
-    }
+    google()
+    mavenCentral()
 }
 
 dependencies {
-    implementation (name: 'alipaysdk-15.8.00.201112210139', ext: 'aar')
+    api 'com.alipay.sdk:alipaysdk-android:+@aar'
 }

@@ -5,6 +5,14 @@
 
 __本插件仅支持《APP支付》，不支持移动支付__
 
+## 2026-05-13 更新
+
+- 使用 Maven Central 动态依赖：`api 'com.alipay.sdk:alipaysdk-android:+@aar'`。
+- 移除仓库内旧本地 AAR，避免与 Maven 依赖冲突。
+- Android 端兼容后端返回对象（支持 `data`/`orderInfo`/`payInfo`）。
+- 在调用 `PayTask.payV2` 前对 `sign` 作最小化修复（`+` -> `%2B`）。
+- 建议：开发用 `+`，发版时锁定具体 SDK 版本以确保可重现构建。
+
 ## 2020-12-05 更新日志
 - SDK 更新至alipaysdk-15.8.00.201112210139.aar。
 - 将 AlipaySDK 中的 UIWebView 更换为 WKWebView。
@@ -137,3 +145,11 @@ Xcode的URL Types上alipay的URL Schemes正确格式应为ali2xxxxxxxxxxxxxxx。
 ## 2. 沙箱环境
 在我个人的开发过程中确实是没有使用到沙箱环境，都是直接真实支付1分钱来做测试。
 如要使用沙箱环境，请自行参考[官方文档](https://docs.open.alipay.com/200/105311/)。
+
+## 2026-05-13 更新
+
+- Gradle 依赖已改为官方推荐的动态写法，构建时从 Maven Central 拉取最新 SDK：在 `src/android/alipay.gradle` 中使用 `api 'com.alipay.sdk:alipaysdk-android:+@aar'`。
+- 仓库内打包的旧本地 AAR 已移除（已从 `plugin.xml` 删除 `lib-file`），避免与 Maven 依赖冲突。
+- 插件 Android 侧兼容性改进：现在支持传入字符串或对象（会自动读取 `data` / `orderInfo` / `payInfo` 字段）作为支付入参。
+- 修复常见验签失败场景：在调用 `PayTask.payV2` 前会对 `sign` 字段做最小化修正（将被误解码为 `+` 的字符恢复为 `%2B`），兼容前端/网关对 `+` 的处理差异，减少因签名字符被改写导致的支付失败。
+- 注意：开发阶段使用 `+` 可以自动获取最新 SDK；为保证可重复构建与稳定性，建议生产发布时在 `alipaysdk-android` 上锁定具体版本号。

@@ -14,6 +14,8 @@ import android.os.Message;
 import android.util.Log;
 
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import android.widget.Toast;
 import android.text.TextUtils;
@@ -25,11 +27,16 @@ import android.annotation.SuppressLint;
 public class alipay extends CordovaPlugin {
 
     private static final int SDK_PAY_FLAG = 1;
+    private static final Pattern SIGN_PATTERN = Pattern.compile("([&?]sign=)([^&]+)");
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
         if (action.equals("payment")) {
-            String orderInfo = args.getString(0);
+            String orderInfo = extractOrderInfo(args);
+            if (TextUtils.isEmpty(orderInfo)) {
+                callbackContext.error("invalid payInfo: expected order string or object with data/orderInfo field");
+                return true;
+            }
             this.payment(orderInfo, callbackContext);
             return true;
         }
@@ -38,7 +45,7 @@ public class alipay extends CordovaPlugin {
 
     private void payment(String orderInfo, final CallbackContext callbackContext) {
 
-        final String payInfo = orderInfo;
+        final String payInfo = normalizeOrderInfo(orderInfo);
         cordova.getThreadPool().execute(new Runnable() {
             @Override
             public void run() {
@@ -98,5 +105,55 @@ public class alipay extends CordovaPlugin {
 
         ;
     };
+
+    private String extractOrderInfo(JSONArray args) throws JSONException {
+        if (args == null || args.length() == 0) {
+            return null;
+        }
+
+        Object raw = args.get(0);
+        if (raw instanceof String) {
+            return ((String) raw).trim();
+        }
+
+        if (raw instanceof JSONObject) {
+            JSONObject json = (JSONObject) raw;
+            String orderInfo = json.optString("data", null);
+            if (TextUtils.isEmpty(orderInfo)) {
+                orderInfo = json.optString("orderInfo", null);
+            }
+            if (TextUtils.isEmpty(orderInfo)) {
+                orderInfo = json.optString("payInfo", null);
+            }
+            return orderInfo == null ? null : orderInfo.trim();
+        }
+
+        return String.valueOf(raw).trim();
+    }
+
+    private String normalizeOrderInfo(String orderInfo) {
+        if (TextUtils.isEmpty(orderInfo)) {
+            return orderInfo;
+        }
+
+        String normalized = orderInfo.trim();
+        if ((normalized.startsWith("\"") && normalized.endsWith("\""))
+                || (normalized.startsWith("'") && normalized.endsWith("'"))) {
+            normalized = normalized.substring(1, normalized.length() - 1).trim();
+        }
+
+        Matcher matcher = SIGN_PATTERN.matcher(normalized);
+        if (matcher.find()) {
+            String rawSign = matcher.group(2);
+            String fixedSign = rawSign.replace("+", "%2B");
+            if (!rawSign.equals(fixedSign)) {
+                normalized = normalized.substring(0, matcher.start(2))
+                        + fixedSign
+                        + normalized.substring(matcher.end(2));
+            }
+        }
+
+        return normalized;
+    }
 
 }
